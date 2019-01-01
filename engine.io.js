@@ -1051,7 +1051,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var isBinary = typeof data !== 'string' && data !== undefined;
 	  var req = this.request({ method: 'POST', data: data, isBinary: isBinary });
 	  var self = this;
-	  req.on('success', fn);
+	  req.on('data', fn);
 	  req.on('error', function (err) {
 	    self.onError('xhr post error', err);
 	  });
@@ -1564,7 +1564,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	Polling.prototype.write = function (packets) {
 	  var self = this;
 	  this.writable = false;
-	  var callbackfn = function callbackfn() {
+	  var callback = function callback(packet, index, total) {
+	    // handle the message
+	    self.onPacket(packet);
+	  };
+	  var callbackfn = function callbackfn(data) {
+	    data = data.substring(data.startsWith('ok') ? 2 : 0);
+	    if (data.length) {
+	      // decode payload
+	      parser.decodePayload(data, self.socket.binaryType, callback);
+	    }
 	    self.writable = true;
 	    self.emit('drain');
 	  };
