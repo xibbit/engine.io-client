@@ -104,6 +104,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (!(this instanceof Socket)) return new Socket(uri, opts);
 
 	  opts = opts || {};
+	  this.outOfBand = opts.outOfBand || function () {};
 
 	  if (uri && 'object' === (typeof uri === 'undefined' ? 'undefined' : _typeof(uri))) {
 	    opts = uri;
@@ -341,7 +342,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.transport = transport;
 
 	  // set up transport listeners
-	  transport.on('drain', function () {
+	  transport.on('outOfBand', function (data) {
+	    self.onOutOfBand(data);
+	  }).on('drain', function () {
 	    self.onDrain();
 	  }).on('packet', function (packet) {
 	    self.onPacket(packet);
@@ -600,6 +603,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.sendPacket('ping', function () {
 	    self.emit('ping');
 	  });
+	};
+
+	/**
+	 * Called on `outOfBand` event
+	 *
+	 * @api private
+	 */
+
+	Socket.prototype.onOutOfBand = function (data) {
+	  this.outOfBand(data);
 	};
 
 	/**
@@ -1571,8 +1584,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var callbackfn = function callbackfn(data) {
 	    data = data.substring(data.startsWith('ok') ? 2 : 0);
 	    if (data.length) {
-	      // decode payload
-	      parser.decodePayload(data, self.socket.binaryType, callback);
+	      if (typeof data !== 'string' || data.match(/^\d+:\d+\[/)) {
+	        // decode payload
+	        parser.decodePayload(data, self.socket.binaryType, callback);
+	      } else {
+	        self.outOfBand(data);
+	      }
 	    }
 	    self.writable = true;
 	    self.emit('drain');
@@ -1774,6 +1791,14 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	Transport.prototype.onPacket = function (packet) {
 	  this.emit('packet', packet);
+	};
+
+	/**
+	 * Called with out of band data.
+	 */
+
+	Transport.prototype.outOfBand = function (data) {
+	  this.emit('outOfBand', data);
 	};
 
 	/**
